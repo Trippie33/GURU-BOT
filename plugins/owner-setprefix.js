@@ -1,4 +1,4 @@
-let handler = async(m, { conn, text }) => {
+let handler = async (m, { conn, text }) => {
   if (!text) throw `No symbol detected ...`
 
   // Regular expression to check if the input contains exactly one symbol
@@ -15,6 +15,7 @@ let handler = async(m, { conn, text }) => {
 handler.help = ['.setprefix ', '.setprefix [symbol]']
 handler.tags = ['owner']
 handler.command = /^(setprefix)$/i
+handler.desc = 'Set the prefix of the bot to a custom symbol'
 handler.rowner = true
 
 export default handler

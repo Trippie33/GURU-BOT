@@ -1,70 +1,36 @@
-import ytdl from 'ytdl-core';
-import fs from 'fs';
-import os from 'os';
 
-let limit = 500;
-let handler = async (m, { conn, args, isPrems, isOwner, usedPrefix, command }) => {
-  if (!args || !args[0]) throw `✳️ Example:\n${usedPrefix + command} https://youtu.be/YzkTFFwxtXI`;
-  if (!args[0].match(/youtu/gi)) throw `❎ Verify that the YouTube link`;
-
-  let chat = global.db.data.chats[m.chat];
-  m.react(rwait);
-  try {
-    const info = await ytdl.getInfo(args[0]);
-    const format = ytdl.chooseFormat(info.formats, { quality: 'highest' });
-    if (!format) {
-      throw new Error('No valid formats found');
-    }
-
-    if (format.contentLength / (1024 * 1024) >= limit) {
-      return m.reply(`≡ *GURU YTDL*\n\n▢ *⚖️Size*: ${format.contentLength / (1024 * 1024).toFixed(2)}MB\n▢ *🎞️Quality*: ${format.qualityLabel}\n\n▢ The file exceeds the download limit *+${limit} MB*`);
-    }
-
-    const tmpDir = os.tmpdir();
-    const fileName = `${tmpDir}/${info.videoDetails.videoId}.mp4`;
-
-    const writableStream = fs.createWriteStream(fileName);
-    ytdl(args[0], {
-      quality: format.itag,
-    }).pipe(writableStream);
-
-    writableStream.on('finish', () => {
-      conn.sendFile(
-        m.chat,
-        fs.readFileSync(fileName),
-        `${info.videoDetails.videoId}.mp4`,
-        `✼ ••๑⋯❀ Y O U T U B E ❀⋯⋅๑•• ✼
-	  
-	  ❏ Title: ${info.videoDetails.title}
-	  ❐ Duration: ${info.videoDetails.lengthSeconds} seconds
-	  ❑ Views: ${info.videoDetails.viewCount}
-	  ❒ Upload: ${info.videoDetails.publishDate}
-	  ❒ Link: ${args[0]}
-	  
-	  ⊱─━⊱༻●༺⊰━─⊰`,
-        m,
-        false,
-        { asDocument: chat.useDocument }
-      );
-
-      fs.unlinkSync(fileName); // Delete the temporary file
-      m.react(done);
-    });
-
-    writableStream.on('error', (error) => {
-      console.error(error);
-      m.reply('Error while trying to download the video. Please try again.');
-    });
-  } catch (error) {
-    console.error(error);
-    m.reply('Error while trying to process the video. Please try again.');
+function extractVideoId(url) {
+  const patterns = [
+    /(?:v=|vi=)([a-zA-Z0-9_-]{11})/, // watch?v=ID
+    /(?:be\/|embed\/|shorts\/)([a-zA-Z0-9_-]{11})/, // youtu.be/ID, embed/ID, shorts/ID
+    /youtube\.com\/v\/([a-zA-Z0-9_-]{11})/ // youtube.com/v/ID
+  ];
+  for (const pattern of patterns) {
+    const match = url.match(pattern);
+    if (match) return match[1];
   }
-};
+  return null;
+}
 
-handler.help = ['ytmp4 <yt-link>'];
-handler.tags = ['dl'];
-handler.command = ['ytmp4', 'video'];
-handler.diamond = false;
+let handler = async (m, { conn, args, usedPrefix, command }) => {
+  if (!args || !args[0]) throw `✳️ Example :\n${usedPrefix + command} https://youtu.be/YzkTFFwxtXI`
+  if (!args[0].match(/youtu/gi)) throw `❎ Verify that it is a YouTube link.`
+  try {
+    await m.reply('⏳ Processing your request, please wait...');
+    const streamUrl = `https://ironman.koyeb.app/ironman/dl/v2/ytmp4?url=${encodeURIComponent(args[0])}`;
+    const videoId = extractVideoId(args[0]) || 'video';
+    const filename = `${videoId}.mp4`;
+    await conn.sendFile(m.chat, streamUrl, filename, '', m, false, { mimetype: 'video/mp4' });
+  } catch (error) {
+    console.error('Error in YouTube video download:', error);
+    await m.reply(`❎ Error: Could not download the video. ${error.message}`);
+  }
+}
 
-export default handler;
+handler.help = ['ytmp4 <url>']
+handler.tags = ['downloader']
+handler.command = ['ytmp4', 'ytv']
+handler.desc = 'Download YouTube video using a URL'
+
+export default handler
 
